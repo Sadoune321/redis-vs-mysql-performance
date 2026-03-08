@@ -599,9 +599,14 @@ function renderTable(data) {
     tbody.innerHTML = "";
 
     if (!data.redis_data || data.redis_data.length === 0) {
+        if (!data.mysql_data || data.mysql_data.length === 0) {
+        data.mysql_data = [];
         tbody.innerHTML = `<tr><td colspan="5" class="no-data">NO STUDENTS FOUND</td></tr>`;
         return;
     }
+        
+    }
+    
 
     data.redis_data.forEach(s => {
         const tr = document.createElement("tr");
