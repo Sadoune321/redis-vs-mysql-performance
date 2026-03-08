@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Management Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #0a0a0f;
+        --surface: #13131a;
+        --surface2: #1c1c28;
+        --border: #2a2a3d;
+        --redis: #ff4d4d;
+        --mysql: #4d9fff;
+        --accent: #7c6aff;
+        --text: #e8e8f0;
+        --text-muted: #6b6b8a;
+        --green: #4dff91;
+        --orange: #ffaa4d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'DM Sans', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+    }
+
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .container {
+        max-width: 1100px;
+        margin: auto;
+        padding: 40px 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    header {
+        text-align: center;
+        margin-bottom: 48px;
+    }
+
+    .badge {
+        display: inline-block;
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        padding: 4px 14px;
+        border-radius: 20px;
+        margin-bottom: 16px;
+    }
+
+    header h1 {
+        font-family: 'Space Mono', monospace;
+        font-size: clamp(22px, 4vw, 34px);
+        font-weight: 700;
+        letter-spacing: -1px;
+    }
+
+    header h1 span { color: var(--accent); }
+
+    /* Form */
+    .form-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .form-card.edit-active {
+        border-color: var(--orange);
+        box-shadow: 0 0 30px rgba(255,170,77,0.07);
+    }
+
+    .edit-banner {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255,170,77,0.08);
+        border: 1px solid rgba(255,170,77,0.25);
+        border-radius: 8px;
+        padding: 10px 16px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: var(--orange);
+        font-family: 'Space Mono', monospace;
+    }
+
+    .edit-banner.show { display: flex; }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    input {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        color: var(--text);
+        font-family: 'DM Sans', sans-serif;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+        width: 100%;
+    }
+
+    input::placeholder { color: var(--text-muted); }
+    input:focus { border-color: var(--accent); }
+    input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+        padding: 11px 22px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.15); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-add    { background: var(--accent); color: #fff; }
+    .btn-update { background: var(--green);  color: #000; }
+    .btn-cancel { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+    #message {
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 1px;
+        color: var(--green);
+        min-height: 20px;
+        margin-bottom: 12px;
+        text-align: center;
+    }
+
+    /* Table card */
+    .table-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .table-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .table-header h2 {
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+    }
+
+    .live-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 2s infinite;
+        flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(77,255,145,0.4); }
+        50%       { opacity: 0.6; box-shadow: 0 0 0 4px rgba(77,255,145,0); }
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+        padding: 11px 20px;
+        text-align: left;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr {
+        border-bottom: 1px solid rgba(42,42,61,0.6);
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    tbody tr:hover    { background: rgba(124,106,255,0.06); }
+    tbody tr.selected { background: rgba(124,106,255,0.12); border-left: 3px solid var(--accent); }
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody td { padding: 13px 20px; font-size: 14px; }
+
+    .id-tag {
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        color: var(--accent);
+        background: rgba(124,106,255,0.1);
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    .actions-cell { display: flex; gap: 8px; }
+
+    .btn-edit {
+        padding: 5px 12px;
+        background: rgba(255,170,77,0.1);
+        border: 1px solid rgba(255,170,77,0.3);
+        color: var(--orange);
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 1px;
+        transition: all 0.2s;
+    }
+
+    .btn-delete {
+        padding: 5px 12px;
+        background: rgba(255,77,77,0.1);
+        border: 1px solid rgba(255,77,77,0.3);
+        color: var(--redis);
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 1px;
+        transition: all 0.2s;
+    }
+
+    .btn-edit:hover   { background: rgba(255,170,77,0.2); }
+    .btn-delete:hover { background: rgba(255,77,77,0.2);  }
+
+    .hint-text {
+        padding: 10px 24px;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        border-top: 1px solid var(--border);
+        text-align: center;
+    }
+
+    /* Detail Panel */
+    .detail-panel {
+        display: none;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        animation: slideDown 0.3s ease;
+    }
+
+    .detail-panel.show { display: block; }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .detail-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .detail-title {
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+    }
+
+    .detail-title span {
+        color: var(--accent);
+        margin-left: 8px;
+    }
+
+    .btn-close {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        border-radius: 6px;
+        padding: 5px 14px;
+        cursor: pointer;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 1px;
+        transition: all 0.2s;
+    }
+
+    .btn-close:hover { border-color: var(--redis); color: var(--redis); }
+
+    .detail-body {
+        padding: 24px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    @media (max-width: 640px) { .detail-body { grid-template-columns: 1fr; } }
+
+    .db-card {
+        border-radius: 12px;
+        padding: 22px;
+        border: 1px solid;
+    }
+
+    .db-card.redis-card {
+        background: rgba(255,77,77,0.03);
+        border-color: rgba(255,77,77,0.2);
+    }
+
+    .db-card.mysql-card {
+        background: rgba(77,159,255,0.03);
+        border-color: rgba(77,159,255,0.2);
+    }
+
+    .db-title {
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .redis-card .db-title { color: var(--redis); }
+    .mysql-card .db-title { color: var(--mysql); }
+
+    .db-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .redis-card .db-dot { background: var(--redis); }
+    .mysql-card .db-dot { background: var(--mysql); }
+
+    .big-time {
+        text-align: center;
+        padding: 12px 0 18px;
+    }
+
+    .big-time .val {
+        font-family: 'Space Mono', monospace;
+        font-size: 38px;
+        font-weight: 700;
+        display: block;
+        line-height: 1;
+    }
+
+    .redis-card .big-time .val { color: var(--redis); }
+    .mysql-card .big-time .val { color: var(--mysql); }
+
+    .big-time .unit {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 3px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        display: block;
+        margin-top: 6px;
+    }
+
+    .winner-badge {
+        display: inline-block;
+        font-family: 'Space Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 2px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        margin-top: 8px;
+    }
+
+    .winner { background: rgba(77,255,145,0.12); color: var(--green);      border: 1px solid rgba(77,255,145,0.3); }
+    .loser  { background: rgba(107,107,138,0.1); color: var(--text-muted); border: 1px solid var(--border); }
+
+    .divider {
+        border: none;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        margin: 4px 0;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 9px 0;
+        font-size: 13px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .info-row:last-child { border-bottom: none; }
+
+    .info-label { color: var(--text-muted); font-size: 12px; }
+
+    .info-val {
+        font-family: 'Space Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .redis-card .info-val { color: var(--redis); }
+    .mysql-card .info-val { color: var(--mysql); }
+
+    .no-data {
+        text-align: center;
+        padding: 48px;
+        color: var(--text-muted);
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 2px;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <div class="badge">SGBD · Redis vs MySQL</div>
+        <h1>Student <span>Management</span></h1>
+    </header>
+
+    <!-- Edit Banner -->
+    <div class="edit-banner" id="editBanner">
+        <span>✏</span>
+        <span>Editing student: <strong id="editingId"></strong></span>
+    </div>
+
+    <!-- Form -->
+    <div class="form-card" id="formCard">
+        <div class="form-grid">
+            <input id="id"    placeholder="Student ID">
+            <input id="name"  placeholder="Name">
+            <input id="age"   placeholder="Age">
+            <input id="major" placeholder="Major">
+        </div>
+        <div id="message"></div>
+        <div class="form-actions">
+            <button id="mainBtn"   class="btn btn-add"    onclick="saveStudent()">+ Add Student</button>
+            <button id="cancelBtn" class="btn btn-cancel" onclick="cancelEdit()" style="display:none;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+        <div class="table-header">
+            <div class="live-dot"></div>
+            <h2>Students</h2>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Major</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentsBody"></tbody>
+        </table>
+        <div class="hint-text">↑ Click any row to see its individual execution time in Redis & MySQL</div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+            <div class="detail-title">
+                Execution Time
+                <span id="detailStudentName"></span>
+            </div>
+            <button class="btn-close" onclick="closeDetail()">✕ Close</button>
+        </div>
+        <div class="detail-body">
+
+            <div class="db-card redis-card">
+                <div class="db-title">
+                    <div class="db-dot"></div>
+                    Redis
+                </div>
+                <div class="big-time">
+                    <span class="val" id="redisMs">—</span>
+                    <span class="unit">milliseconds</span>
+                    <div><span class="winner-badge" id="redisBadge"></span></div>
+                </div>
+                <hr class="divider">
+                <div class="info-row">
+                    <span class="info-label">Command</span>
+                    <span class="info-val">HGETALL</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Key</span>
+                    <span class="info-val" id="redisKey">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Time (µs)</span>
+                    <span class="info-val" id="redisUs">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Measured via</span>
+                    <span class="info-val">SLOWLOG</span>
+                </div>
+            </div>
+
+            <div class="db-card mysql-card">
+                <div class="db-title">
+                    <div class="db-dot"></div>
+                    MySQL
+                </div>
+                <div class="big-time">
+                    <span class="val" id="mysqlMs">—</span>
+                    <span class="unit">milliseconds</span>
+                    <div><span class="winner-badge" id="mysqlBadge"></span></div>
+                </div>
+                <hr class="divider">
+                <div class="info-row">
+                    <span class="info-label">Query</span>
+                    <span class="info-val">SELECT WHERE id=</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Table</span>
+                    <span class="info-val">students</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Rows returned</span>
+                    <span class="info-val">1</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Measured via</span>
+                    <span class="info-val">PROFILING</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+<script>
+let editMode  = false;
+let currentId = null;
+let lastData  = null;
+
+window.addEventListener("load", async () => {
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get("edit");
+    await loadStudents();
+    if (editId) loadStudentForEdit(editId);
+});
+
+async function loadStudents() {
+    const res = await fetch("/students");
+    lastData  = await res.json();
+    renderTable(lastData);
+}
+
+function renderTable(data) {
+    const tbody = document.getElementById("studentsBody");
+    tbody.innerHTML = "";
+
+    if (!data.redis_data || data.redis_data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="no-data">NO STUDENTS FOUND</td></tr>`;
+        return;
+    }
+
+    data.redis_data.forEach(s => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td><span class="id-tag">${s.id}</span></td>
+            <td>${s.name}</td>
+            <td>${s.age}</td>
+            <td>${s.major}</td>
+            <td class="actions-cell" onclick="event.stopPropagation()">
+                <button class="btn-edit"   onclick="editStudent('${s.id}','${s.name}','${s.age}','${s.major}')">Edit</button>
+                <button class="btn-delete" onclick="deleteStudent('${s.id}')">Delete</button>
+            </td>`;
+        tr.addEventListener("click", (e) => showDetail(e, s, data));
+        tbody.appendChild(tr);
+    });
+}
+
+function showDetail(e, student, data) {
+    // Highlight row
+    document.querySelectorAll("#studentsBody tr").forEach(r => r.classList.remove("selected"));
+    e.currentTarget.classList.add("selected");
+
+    // Find matching MySQL student
+    const mysqlStudent = data.mysql_data.find(m => String(m.id) === String(student.id));
+
+    const rt = student.redis_time_ms ?? "—";
+    const mt = mysqlStudent ? mysqlStudent.mysql_time_ms : "—";
+
+    // Fill panel
+    document.getElementById("detailStudentName").innerText = student.name + "  [" + student.id + "]";
+    document.getElementById("redisMs").innerText  = rt;
+    document.getElementById("mysqlMs").innerText  = mt;
+    document.getElementById("redisKey").innerText = "student:" + student.id;
+    document.getElementById("redisUs").innerText  = (student.redis_time_us ?? "—") + " µs";
+
+    // Winner badges
+    const rBadge = document.getElementById("redisBadge");
+    const mBadge = document.getElementById("mysqlBadge");
+
+    if (parseFloat(rt) < parseFloat(mt)) {
+        rBadge.textContent = "⚡ Faster"; rBadge.className = "winner-badge winner";
+        mBadge.textContent = "Slower";   mBadge.className = "winner-badge loser";
+    } else if (parseFloat(mt) < parseFloat(rt)) {
+        mBadge.textContent = "⚡ Faster"; mBadge.className = "winner-badge winner";
+        rBadge.textContent = "Slower";   rBadge.className = "winner-badge loser";
+    } else {
+        rBadge.textContent = "Equal"; rBadge.className = "winner-badge loser";
+        mBadge.textContent = "Equal"; mBadge.className = "winner-badge loser";
+    }
+
+    const panel = document.getElementById("detailPanel");
+    panel.classList.add("show");
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeDetail() {
+    document.getElementById("detailPanel").classList.remove("show");
+    document.querySelectorAll("#studentsBody tr").forEach(r => r.classList.remove("selected"));
+}
+
+async function saveStudent() {
+    const payload = {
+        id:    document.getElementById("id").value.trim(),
+        name:  document.getElementById("name").value.trim(),
+        age:   document.getElementById("age").value.trim(),
+        major: document.getElementById("major").value.trim()
+    };
+
+    if (!payload.id || !payload.name || !payload.age || !payload.major) {
+        alert("Please fill all fields"); return;
+    }
+
+    if (editMode) {
+        await fetch("/students/" + currentId, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        showMessage("✓ Student updated");
+    } else {
+        const res = await fetch("/students", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) { alert("Student ID already exists"); return; }
+        showMessage("✓ Student added");
+    }
+
+    resetForm();
+    closeDetail();
+    await loadStudents();
+}
+
+function editStudent(id, name, age, major) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("edit", id);
+    window.history.pushState({}, "", url);
+    fillEditForm(id, name, age, major);
+}
+
+function loadStudentForEdit(id) {
+    if (!lastData) return;
+    const s = lastData.redis_data.find(s => s.id === id);
+    if (s) fillEditForm(s.id, s.name, s.age, s.major);
+}
+
+function fillEditForm(id, name, age, major) {
+    document.getElementById("id").value    = id;
+    document.getElementById("name").value  = name;
+    document.getElementById("age").value   = age;
+    document.getElementById("major").value = major;
+    document.getElementById("id").disabled = true;
+
+    editMode  = true;
+    currentId = id;
+
+    document.getElementById("mainBtn").textContent    = "Update Student";
+    document.getElementById("mainBtn").className      = "btn btn-update";
+    document.getElementById("cancelBtn").style.display = "inline-block";
+    document.getElementById("editingId").textContent  = id;
+    document.getElementById("editBanner").classList.add("show");
+    document.getElementById("formCard").classList.add("edit-active");
+    document.getElementById("formCard").scrollIntoView({ behavior: "smooth" });
+}
+
+function cancelEdit() { resetForm(); }
+
+async function deleteStudent(id) {
+    if (!confirm("Delete student " + id + "?")) return;
+    await fetch("/students/" + id, { method: "DELETE" });
+    showMessage("✓ Student deleted");
+    closeDetail();
+    await loadStudents();
+}
+
+function resetForm() {
+    ["id","name","age","major"].forEach(f => {
+        document.getElementById(f).value    = "";
+        document.getElementById(f).disabled = false;
+    });
+    editMode  = false;
+    currentId = null;
+    document.getElementById("mainBtn").textContent     = "+ Add Student";
+    document.getElementById("mainBtn").className       = "btn btn-add";
+    document.getElementById("cancelBtn").style.display = "none";
+    document.getElementById("editBanner").classList.remove("show");
+    document.getElementById("formCard").classList.remove("edit-active");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("edit");
+    window.history.pushState({}, "", url);
+}
+
+function showMessage(msg) {
+    const el = document.getElementById("message");
+    el.textContent = msg;
+    setTimeout(() => { el.textContent = ""; }, 3000);
+}
+</script>
+</body>
+</html>
